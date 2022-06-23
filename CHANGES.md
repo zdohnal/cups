@@ -5,6 +5,7 @@ Changes in CUPS v2.4.3 (TBA)
 ----------------------------
 
 - Added a title with device uri for found network printers (Issues #402, #393)
+- Command `cupsctl` now supports `--verbose-debug-logging` option
 - Fixed configuration on RISC-V machines (Issue #404)
 - Fixed the `device_uri` invalid pointer for driverless printers with `.local` hostname (Issue #419)
 - Fixed an OpenSSL crash bug (Issue #409)

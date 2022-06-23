@@ -36,6 +36,17 @@ static void		invalidate_cupsd_cache(_cups_globals_t *cg);
 
 
 /*
+ * Local variables
+ */
+static enum debug_levels
+{
+  CUPS_DEBUG_NONE = 0,/* Debug logging turned off */
+  CUPS_DEBUG_NORMAL,  /* Normal debug logging turned on */
+  CUPS_DEBUG_VERBOSE  /* Verbose debug logging turned on */
+};
+
+
+/*
  * 'cupsAdminCreateWindowsPPD()' - Create the Windows PPD file for a printer.
  *
  * @deprecated@
@@ -273,6 +284,8 @@ cupsAdminGetServerSettings(
       else if (!_cups_strcasecmp(line, "LogLevel") && value)
       {
 	debug_logging = !_cups_strncasecmp(value, "debug", 5);
+	if (debug_logging && value[5] == '2')
+	  debug_logging = CUPS_DEBUG_VERBOSE;
       }
       else if (!_cups_strcasecmp(line, "<Policy") && value && !_cups_strcasecmp(value, "default"))
       {
@@ -357,7 +370,7 @@ cupsAdminGetServerSettings(
     cupsFileClose(cupsd);
 
     cg->cupsd_num_settings = cupsAddOption(CUPS_SERVER_DEBUG_LOGGING,
-                                           debug_logging ? "1" : "0",
+					   debug_logging ? debug_logging > 1 ? "2" : "1" : "0",
 					   cg->cupsd_num_settings,
 					   &(cg->cupsd_settings));
 
@@ -435,6 +448,7 @@ cupsAdminSetServerSettings(
 		in_conf_location,	/* In the /admin/conf location? */
 		in_log_location,	/* In the /admin/log location? */
 		in_root_location;	/* In the / location? */
+  const char	*debug_level;		/* Debug level value */
   const char	*val;			/* Setting value */
   int		share_printers,		/* Share local printers */
 		remote_admin,		/* Remote administration allowed? */
@@ -772,17 +786,20 @@ cupsAdminSetServerSettings(
     {
       wrote_loglevel = 1;
 
-      if (debug_logging)
+      switch(debug_logging)
       {
-        cupsFilePuts(temp,
-	             "# Show troubleshooting information in error_log.\n");
-	cupsFilePuts(temp, "LogLevel debug\n");
+	case CUPS_DEBUG_NORMAL :
+	    debug_level = "debug";
+	    break;
+	case CUPS_DEBUG_VERBOSE :
+	    debug_level = "debug2";
+	    break;
+	default :
+	    debug_level = CUPS_DEFAULT_LOG_LEVEL;
+	    break;
       }
-      else
-      {
-        cupsFilePuts(temp, "# Show general information in error_log.\n");
-	cupsFilePuts(temp, "LogLevel " CUPS_DEFAULT_LOG_LEVEL "\n");
-      }
+
+      cupsFilePrintf(temp, "LogLevel %s\n", debug_level);
     }
     else if (!_cups_strcasecmp(line, "<Policy"))
     {
@@ -1081,16 +1098,20 @@ cupsAdminSetServerSettings(
 
   if (!wrote_loglevel && debug_logging >= 0)
   {
-    if (debug_logging)
+    switch(debug_logging)
     {
-      cupsFilePuts(temp, "# Show troubleshooting information in error_log.\n");
-      cupsFilePuts(temp, "LogLevel debug\n");
+      case CUPS_DEBUG_NORMAL :
+	  debug_level = "debug";
+	  break;
+      case CUPS_DEBUG_VERBOSE :
+	  debug_level = "debug2";
+	  break;
+      default :
+	  debug_level = CUPS_DEFAULT_LOG_LEVEL;
+	  break;
     }
-    else
-    {
-      cupsFilePuts(temp, "# Show general information in error_log.\n");
-      cupsFilePuts(temp, "LogLevel " CUPS_DEFAULT_LOG_LEVEL "\n");
-    }
+
+    cupsFilePrintf(temp, "LogLevel %s", debug_level);
   }
 
   if (!wrote_port_listen &&
@@ -1276,11 +1297,11 @@ cupsAdminSetServerSettings(
 
     if (debug_logging >= 0)
       cupsd_num_settings = cupsAddOption(CUPS_SERVER_DEBUG_LOGGING,
-                                	 debug_logging ? "1" : "0",
+					 debug_logging ? debug_logging > 1 ? "2" : "1" : "0",
 					 cupsd_num_settings, &cupsd_settings);
     else
       cupsd_num_settings = cupsAddOption(CUPS_SERVER_DEBUG_LOGGING,
-                                	 old_debug_logging ? "1" : "0",
+					 old_debug_logging ? old_debug_logging > 1 ? "2" : "1" : "0",
 					 cupsd_num_settings, &cupsd_settings);
 
     if (remote_admin >= 0)

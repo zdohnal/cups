@@ -22,7 +22,7 @@ cupsctl \- configure cupsd.conf options
 .B \-U
 .I username
 ] [
-\fB\-\-\fR[\fBno\-\fR]\fBdebug\-logging\fR
+\fB\-\-\fR[\fBno\-\fR\|\fBverbose\-\fR]\fBdebug\-logging\fR
 ] [
 \fB\-\-\fR[\fBno\-\fR]\fBremote\-admin\fR
 ] [
@@ -51,8 +51,9 @@ Specifies an alternate username to use when authenticating with the scheduler.
 Specifies the server address.
 Note: This option must occur before all others.
 .TP 5
-\fB\-\-\fR[\fBno\-\fR]\fBdebug\-logging\fR
-Enables (disables) debug logging to the \fIerror_log\fR file.
+\fB\-\-\fR[\fBno\-\fR\|\fBverbose\-\fR]\fBdebug\-logging\fR
+Enables (disables) debug logging to the \fIerror_log\fR file. \fB\-\-verbose\fR
+prefix turns on \fIdebug2\fR logging.
 .TP 5
 \fB\-\-\fR[\fBno\-\fR]\fBremote\-admin\fR
 Enables (disables) remote administration.
