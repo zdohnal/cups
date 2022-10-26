@@ -74,6 +74,7 @@ _cupsConvertOptions(
   const char	*media_source,		/* media-source value */
 		*media_type,		/* media-type value */
 		*collate_str,		/* multiple-document-handling value */
+		*color_attr_name,	/* Supported color attribute */
 		*mandatory,		/* Mandatory attributes */
 		*finishing_template;	/* Finishing template */
   int		num_finishings = 0,	/* Number of finishing values */
@@ -255,6 +256,61 @@ _cupsConvertOptions(
 
   if (keyword)
     ippAddString(request, IPP_TAG_JOB, IPP_TAG_KEYWORD, "output-bin", NULL, keyword);
+
+  color_attr_name = print_color_mode_sup ? "print-color-mode" : "output-mode";
+
+ /*
+  * If we use PPD with standardized PPD option for color support - ColorModel,
+  * prefer it to don't break color/grayscale support for PPDs, either classic
+  * or the ones generated from IPP Get-Printer-Attributes response.
+  */
+
+  if ((keyword = cupsGetOption("ColorModel", num_options, options)) == NULL)
+  {
+   /*
+    * No ColorModel in options...
+    */
+
+    if ((choice = ppdFindMarkedChoice(ppd, "ColorModel")) != NULL)
+    {
+     /*
+      * ColorModel is taken from PPD as its default option.
+      */
+
+      if (!strcmp(choice->choice, "Gray") || !strcmp(choice->choice, "FastGray") || !strcmp(choice->choice, "DeviceGray"))
+        keyword = "monochrome";
+      else
+        keyword = "color";
+    }
+    else
+     /*
+      * print-color-mode is a default option since 2.4.1, use it as a fallback if there is no
+      * ColorModel in options or PPD...
+      */
+      keyword = cupsGetOption("print-color-mode", num_options, options);
+  }
+  else
+  {
+   /*
+    * ColorModel found in options...
+    */
+
+    if (!strcmp(keyword, "Gray") || !strcmp(keyword, "FastGray") || !strcmp(keyword, "DeviceGray"))
+      keyword = "monochrome";
+    else
+      keyword = "color";
+  }
+
+  if (keyword && !strcmp(keyword, "monochrome"))
+  {
+    if (ippContainsString(print_color_mode_sup, "auto-monochrome"))
+      keyword = "auto-monochrome";
+    else if (ippContainsString(print_color_mode_sup, "process-monochrome") && !ippContainsString(print_color_mode_sup, "monochrome"))
+      keyword = "process-monochrome";
+  }
+
+  if (keyword)
+    ippAddString(request, IPP_TAG_JOB, IPP_TAG_KEYWORD, color_attr_name, NULL, keyword);
 
   if ((keyword = cupsGetOption("print-quality", num_options, options)) != NULL)
     ippAddInteger(request, IPP_TAG_JOB, IPP_TAG_ENUM, "print-quality", atoi(keyword));
