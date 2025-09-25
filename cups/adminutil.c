@@ -685,9 +685,11 @@ cupsAdminSetServerSettings(
   if (server_port <= 0)
     server_port = IPP_PORT;
 
-  while (cupsFileGetConf(cupsd, line, sizeof(line), &value, &linenum))
+  while (_cupsFileGetConfAndComments(cupsd, line, sizeof(line), &value, &linenum))
   {
-    if ((!_cups_strcasecmp(line, "Port") || !_cups_strcasecmp(line, "Listen")) &&
+    if (!line[0])
+      cupsFilePuts(temp, "\n");
+    else if ((!_cups_strcasecmp(line, "Port") || !_cups_strcasecmp(line, "Listen")) &&
         (remote_admin >= 0 || remote_any >= 0 || share_printers >= 0))
     {
       if (!wrote_port_listen)
@@ -695,16 +697,9 @@ cupsAdminSetServerSettings(
         wrote_port_listen = 1;
 
 	if (remote_admin > 0 || remote_any > 0 || share_printers > 0)
-	{
-	  cupsFilePuts(temp, "# Allow remote access\n");
 	  cupsFilePrintf(temp, "Port %d\n", server_port);
-	}
 	else
-	{
-	  cupsFilePuts(temp, "# Only listen for connections from the local "
-	                     "machine.\n");
 	  cupsFilePrintf(temp, "Listen localhost:%d\n", server_port);
-	}
 
 #ifdef CUPS_DEFAULT_DOMAINSOCKET
         if ((!value || strcmp(CUPS_DEFAULT_DOMAINSOCKET, value)) &&
@@ -736,7 +731,6 @@ cupsAdminSetServerSettings(
 	    localp = cupsGetOption("BrowseLocalProtocols", cupsd_num_settings,
 	                           cupsd_settings);
 
-	  cupsFilePuts(temp, "# Share local printers on the local network.\n");
 	  cupsFilePuts(temp, "Browsing On\n");
 
 	  if (!localp)
@@ -749,10 +743,7 @@ cupsAdminSetServerSettings(
 					     &cupsd_settings);
         }
 	else
-	{
-	  cupsFilePuts(temp, "# Disable printer sharing.\n");
 	  cupsFilePuts(temp, "Browsing Off\n");
-	}
       }
     }
     else if (!_cups_strcasecmp(line, "LogLevel") && debug_logging >= 0)
@@ -760,16 +751,9 @@ cupsAdminSetServerSettings(
       wrote_loglevel = 1;
 
       if (debug_logging)
-      {
-        cupsFilePuts(temp,
-	             "# Show troubleshooting information in error_log.\n");
 	cupsFilePuts(temp, "LogLevel debug\n");
-      }
       else
-      {
-        cupsFilePuts(temp, "# Show general information in error_log.\n");
 	cupsFilePuts(temp, "LogLevel " CUPS_DEFAULT_LOG_LEVEL "\n");
-      }
     }
     else if (!_cups_strcasecmp(line, "<Policy"))
     {
@@ -787,10 +771,8 @@ cupsAdminSetServerSettings(
 	wrote_policy = 1;
 
         if (!user_cancel_any)
-	  cupsFilePuts(temp, "  # Only the owner or an administrator can "
-	                     "cancel a job...\n"
-	                     "  <Limit Cancel-Job>\n"
-	                     "    Order deny,allow\n"
+	  cupsFilePuts(temp, "  <Limit Cancel-Job>\n"
+			     "    Order deny,allow\n"
 			     "    Require user @OWNER "
 			     CUPS_DEFAULT_PRINTOPERATOR_AUTH "\n"
 			     "  </Limit>\n");
@@ -824,11 +806,6 @@ cupsAdminSetServerSettings(
       {
 	wrote_admin_location = 1;
 
-	if (remote_admin)
-          cupsFilePuts(temp, "  # Allow remote administration...\n");
-	else
-          cupsFilePuts(temp, "  # Restrict access to the admin pages...\n");
-
         cupsFilePuts(temp, "  Order allow,deny\n");
 
 	if (remote_admin)
@@ -842,13 +819,6 @@ cupsAdminSetServerSettings(
       else if (in_conf_location && remote_admin >= 0)
       {
 	wrote_conf_location = 1;
-
-	if (remote_admin)
-          cupsFilePuts(temp, "  # Allow remote access to the configuration "
-	                     "files...\n");
-	else
-          cupsFilePuts(temp, "  # Restrict access to the configuration "
-	                     "files...\n");
 
         cupsFilePuts(temp, "  Order allow,deny\n");
 
@@ -864,13 +834,6 @@ cupsAdminSetServerSettings(
       {
 	wrote_log_location = 1;
 
-	if (remote_admin)
-          cupsFilePuts(temp, "  # Allow remote access to the log "
-	                     "files...\n");
-	else
-          cupsFilePuts(temp, "  # Restrict access to the log "
-	                     "files...\n");
-
         cupsFilePuts(temp, "  Order allow,deny\n");
 
 	if (remote_admin)
@@ -885,18 +848,6 @@ cupsAdminSetServerSettings(
                (remote_admin >= 0 || remote_any >= 0 || share_printers >= 0))
       {
 	wrote_root_location = 1;
-
-	if (remote_admin > 0 && share_printers > 0)
-          cupsFilePuts(temp, "  # Allow shared printing and remote "
-	                     "administration...\n");
-	else if (remote_admin > 0)
-          cupsFilePuts(temp, "  # Allow remote administration...\n");
-	else if (share_printers > 0)
-          cupsFilePuts(temp, "  # Allow shared printing...\n");
-	else if (remote_any > 0)
-          cupsFilePuts(temp, "  # Allow remote access...\n");
-	else
-          cupsFilePuts(temp, "  # Restrict access to the server...\n");
 
         cupsFilePuts(temp, "  Order allow,deny\n");
 
@@ -978,9 +929,7 @@ cupsAdminSetServerSettings(
       wrote_policy = 1;
 
       if (!user_cancel_any)
-	cupsFilePuts(temp, "  # Only the owner or an administrator can cancel "
-			   "a job...\n"
-			   "  <Limit Cancel-Job>\n"
+	cupsFilePuts(temp, "  <Limit Cancel-Job>\n"
 			   "    Order deny,allow\n"
 			   "    Require user @OWNER "
 			   CUPS_DEFAULT_PRINTOPERATOR_AUTH "\n"
@@ -1055,45 +1004,26 @@ cupsAdminSetServerSettings(
   if (!wrote_browsing && share_printers >= 0)
   {
     if (share_printers > 0)
-    {
-      cupsFilePuts(temp, "# Share local printers on the local network.\n");
       cupsFilePuts(temp, "Browsing On\n");
-    }
     else
-    {
-      cupsFilePuts(temp, "# Disable printer sharing and shared printers.\n");
       cupsFilePuts(temp, "Browsing Off\n");
-    }
   }
 
   if (!wrote_loglevel && debug_logging >= 0)
   {
     if (debug_logging)
-    {
-      cupsFilePuts(temp, "# Show troubleshooting information in error_log.\n");
       cupsFilePuts(temp, "LogLevel debug\n");
-    }
     else
-    {
-      cupsFilePuts(temp, "# Show general information in error_log.\n");
       cupsFilePuts(temp, "LogLevel " CUPS_DEFAULT_LOG_LEVEL "\n");
-    }
   }
 
   if (!wrote_port_listen &&
       (remote_admin >= 0 || remote_any >= 0 || share_printers >= 0))
   {
     if (remote_admin > 0 || remote_any > 0 || share_printers > 0)
-    {
-      cupsFilePuts(temp, "# Allow remote access\n");
       cupsFilePrintf(temp, "Port %d\n", ippPort());
-    }
     else
-    {
-      cupsFilePuts(temp,
-                   "# Only listen for connections from the local machine.\n");
       cupsFilePrintf(temp, "Listen localhost:%d\n", ippPort());
-    }
 
 #ifdef CUPS_DEFAULT_DOMAINSOCKET
     if (!access(CUPS_DEFAULT_DOMAINSOCKET, 0))
@@ -1104,18 +1034,6 @@ cupsAdminSetServerSettings(
   if (!wrote_root_location &&
       (remote_admin >= 0 || remote_any >= 0 || share_printers >= 0))
   {
-    if (remote_admin > 0 && share_printers > 0)
-      cupsFilePuts(temp,
-                   "# Allow shared printing and remote administration...\n");
-    else if (remote_admin > 0)
-      cupsFilePuts(temp, "# Allow remote administration...\n");
-    else if (share_printers > 0)
-      cupsFilePuts(temp, "# Allow shared printing...\n");
-    else if (remote_any > 0)
-      cupsFilePuts(temp, "# Allow remote access...\n");
-    else
-      cupsFilePuts(temp, "# Restrict access to the server...\n");
-
     cupsFilePuts(temp, "<Location />\n"
                        "  Order allow,deny\n");
 
@@ -1127,11 +1045,6 @@ cupsAdminSetServerSettings(
 
   if (!wrote_admin_location && remote_admin >= 0)
   {
-    if (remote_admin)
-      cupsFilePuts(temp, "# Allow remote administration...\n");
-    else
-      cupsFilePuts(temp, "# Restrict access to the admin pages...\n");
-
     cupsFilePuts(temp, "<Location /admin>\n"
                        "  Order allow,deny\n");
 
@@ -1143,12 +1056,6 @@ cupsAdminSetServerSettings(
 
   if (!wrote_conf_location && remote_admin >= 0)
   {
-    if (remote_admin)
-      cupsFilePuts(temp,
-                   "# Allow remote access to the configuration files...\n");
-    else
-      cupsFilePuts(temp, "# Restrict access to the configuration files...\n");
-
     cupsFilePuts(temp, "<Location /admin/conf>\n"
                        "  AuthType Default\n"
                        "  Require user @SYSTEM\n"
@@ -1162,12 +1069,6 @@ cupsAdminSetServerSettings(
 
   if (!wrote_log_location && remote_admin >= 0)
   {
-    if (remote_admin)
-      cupsFilePuts(temp,
-                   "# Allow remote access to the log files...\n");
-    else
-      cupsFilePuts(temp, "# Restrict access to the log files...\n");
-
     cupsFilePuts(temp, "<Location /admin/log>\n"
                        "  AuthType Default\n"
                        "  Require user @SYSTEM\n"
@@ -1182,8 +1083,6 @@ cupsAdminSetServerSettings(
   if (!wrote_policy && user_cancel_any >= 0)
   {
     cupsFilePuts(temp, "<Policy default>\n"
-                       "  # Job-related operations must be done by the owner "
-		       "or an administrator...\n"
                        "  <Limit Send-Document Send-URI Hold-Job Release-Job "
 		       "Restart-Job Purge-Jobs Set-Job-Attributes "
 		       "Create-Job-Subscription Renew-Subscription "
@@ -1193,8 +1092,6 @@ cupsAdminSetServerSettings(
                        "    Require user @OWNER @SYSTEM\n"
                        "    Order deny,allow\n"
                        "  </Limit>\n"
-                       "  # All administration operations require an "
-		       "administrator to authenticate...\n"
 		       "  <Limit Pause-Printer Resume-Printer "
                        "Set-Printer-Attributes Enable-Printer "
 		       "Disable-Printer Pause-Printer-After-Current-Job "
@@ -1211,13 +1108,11 @@ cupsAdminSetServerSettings(
                        "</Limit>\n");
 
     if (!user_cancel_any)
-      cupsFilePuts(temp, "  # Only the owner or an administrator can cancel "
-                         "a job...\n"
-	                 "  <Limit Cancel-Job>\n"
-	                 "    Order deny,allow\n"
-	                 "    Require user @OWNER "
-			 CUPS_DEFAULT_PRINTOPERATOR_AUTH "\n"
-			 "  </Limit>\n");
+	cupsFilePuts(temp, "  <Limit Cancel-Job>\n"
+			   "    Order deny,allow\n"
+			   "    Require user @OWNER "
+			   CUPS_DEFAULT_PRINTOPERATOR_AUTH "\n"
+			   "  </Limit>\n");
 
     cupsFilePuts(temp, "  <Limit All>\n"
                        "  Order deny,allow\n"
