@@ -290,13 +290,13 @@ _cupsFileCheckFilter(
 
 
 /*
- * '_cupsFileStripComment' - Strip inline comments from a line of text..
+ * '_cupsFileStripInlineComment' - Strip inline comments from a line of text..
  */
 
 void
-_cupsFileStripComment(char *buf)
+_cupsFileStripInlineComment(char *buf)
 {
-  DEBUG_printf(("2_cupsFileStripComment(buf=%p)", (void *)buf));
+  DEBUG_printf("2_cupsFileStripInlineComment(buf=%p)", (void *)buf);
 
   /*
    * Find the first '#' character
@@ -314,7 +314,7 @@ _cupsFileStripComment(char *buf)
      * If it is, skip it and look in the rest of the string... 
      */
 
-    _cupsFileStripComment(ptr + 1);
+    _cupsFileStripInlineComment(ptr + 1);
 
     return;
   }
@@ -335,13 +335,11 @@ _cupsFileStripComment(char *buf)
 
       _cups_strcpy(ptr - 1, ptr);
 
-      return _cupsFileStripComment(buf);
+      return _cupsFileStripInlineComment(ptr + 1);
     }
     else
       ptr++;
   }
-
-  return buf;
 }
 
 
@@ -359,8 +357,8 @@ _cupsFileGetConfAndComments(cups_file_t *fp,	/* I  - CUPS file */
   char	*ptr;				/* Pointer into line */
 
 
-  DEBUG_printf(("2cupsFileGetConfAndComments(fp=%p, buf=%p, buflen=" CUPS_LLFMT
-                ", value=%p, linenum=%p)", (void *)fp, (void *)buf, CUPS_LLCAST buflen, (void *)value, (void *)linenum));
+  DEBUG_printf("2cupsFileGetConfAndComments(fp=%p, buf=%p, buflen=" CUPS_LLFMT
+                ", value=%p, linenum=%p)", (void *)fp, (void *)buf, CUPS_LLCAST buflen, (void *)value, (void *)linenum);
 
 
   /*
@@ -390,7 +388,7 @@ _cupsFileGetConfAndComments(cups_file_t *fp,	/* I  - CUPS file */
      * Remove the inline comment...
      */
 
-    _cupsFileStripComment(buf);
+    _cupsFileStripInlineComment(buf);
 
     /*
      * Strip leading whitespace...
