@@ -116,6 +116,12 @@ project.  This is the most important for attack vector metric in CVSS - because 
 CUPS listens on localhost and domain socket in default configuration, therefore
 CVSS base metrics will reflect it.
 
+Since CUPS is meant to run in private or internal networks which means it is not exposed
+to public network and CVSS base metrics do not specify such difference in the attack vector
+metric, CUPS vulnerabilties will have the attack vector of `Adjacent` at most to reflect this,
+although the definition of `Adjacent` speaks about local networks without routers
+in the topology.
+
 The final CVSS score will later affect how the vulnerability is disclosed.
 
 
