@@ -141,6 +141,11 @@ VAR cups_array_t	*Printers	VALUE(NULL);
 					/* Printer list */
 VAR cupsd_printer_t	*DefaultPrinter	VALUE(NULL);
 					/* Default printer */
+VAR int			DefaultNumOptions
+					VALUE(0);
+					/* Number of global default options */
+VAR cups_option_t	*DefaultOptions	VALUE(NULL);
+					/* Global default options */
 VAR char		*DefaultPolicy	VALUE(NULL);
 					/* Default policy name */
 VAR cupsd_policy_t	*DefaultPolicyPtr
