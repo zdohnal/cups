@@ -744,6 +744,7 @@ cupsdReadConfiguration(void)
   RootCertDuration         = 300;
   Sandboxing               = CUPSD_SANDBOXING_STRICT;
   StrictConformance        = FALSE;
+  DefaultOptionStrict      = FALSE;
 #ifdef CUPS_DEFAULT_SYNC_ON_CLOSE
   SyncOnClose              = TRUE;
 #else
@@ -3054,6 +3055,17 @@ read_cupsd_conf(cups_file_t *fp)	/* I - File to read from */
       cupsdLogMessage(CUPSD_LOG_WARN,
 		      "FaxRetryLimit is deprecated; use "
 		      "JobRetryLimit on line %d of %s.", linenum, ConfigurationFile);
+    }
+    else if (!_cups_strcasecmp(line, "DefaultOptionPolicy") && value)
+    {
+      if (!_cups_strcasecmp(value, "Relaxed"))
+	DefaultOptionStrict = 0;
+      else if (!_cups_strcasecmp(value, "Strict"))
+	DefaultOptionStrict = 1;
+      else
+	cupsdLogMessage(CUPSD_LOG_ERROR,
+			"Invalid DefaultOptionPolicy \"%s\" on line %d of %s.",
+			value, linenum, ConfigurationFile);
     }
 #ifdef HAVE_TLS
     else if (!_cups_strcasecmp(line, "SSLOptions"))

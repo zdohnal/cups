@@ -218,6 +218,8 @@ VAR int			HostNameLookups		VALUE(FALSE),
 					/* Format of printcap file? */
 			DefaultShared		VALUE(TRUE),
 					/* Share printers by default? */
+			DefaultOptionStrict	VALUE(FALSE),
+					/* Strict global default policy? */
 			MultipleOperationTimeout VALUE(DEFAULT_TIMEOUT),
 					/* multiple-operation-time-out value */
 			WebInterface		VALUE(CUPS_DEFAULT_WEBIF);
