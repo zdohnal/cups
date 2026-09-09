@@ -273,7 +273,9 @@ static const char * const ipp_std_ops[] =
 		* const ipp_cups_ops2[] =
 		{
 		  "CUPS-Get-Document",
-		  "CUPS-Create-Local-Printer"
+		  "CUPS-Create-Local-Printer",
+		  "CUPS-Set-Default-Options",
+		  "CUPS-Get-Default-Options"
 		},
 		* const ipp_tag_names[] =
 		{			/* Value/group tag names */
@@ -2340,7 +2342,7 @@ ippOpString(ipp_op_t op)		/* I - Operation ID */
     return ("windows-ext");
   else if (op >= IPP_OP_CUPS_GET_DEFAULT && op <= IPP_OP_CUPS_GET_PPD)
     return (ipp_cups_ops[op - IPP_OP_CUPS_GET_DEFAULT]);
-  else if (op >= IPP_OP_CUPS_GET_DOCUMENT && op <= IPP_OP_CUPS_CREATE_LOCAL_PRINTER)
+  else if (op >= IPP_OP_CUPS_GET_DOCUMENT && op <= IPP_OP_CUPS_GET_DEFAULT_OPTIONS)
     return (ipp_cups_ops2[op - IPP_OP_CUPS_GET_DOCUMENT]);
 
  /*

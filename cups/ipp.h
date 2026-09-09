@@ -364,7 +364,9 @@ typedef enum ipp_op_e			/**** IPP operations ****/
   IPP_OP_CUPS_AUTHENTICATE_JOB,		/* CUPS-Authenticate-Job: Authenticate a job @since CUPS 1.2/macOS 10.5@ */
   IPP_OP_CUPS_GET_PPD,			/* CUPS-Get-PPD: Get a PPD file @deprecated@ */
   IPP_OP_CUPS_GET_DOCUMENT = 0x4027,	/* CUPS-Get-Document: Get a document file @since CUPS 1.4/macOS 10.6@ */
-  IPP_OP_CUPS_CREATE_LOCAL_PRINTER	/* CUPS-Create-Local-Printer: Create a local (temporary) printer @since CUPS 2.2@ */
+  IPP_OP_CUPS_CREATE_LOCAL_PRINTER,	/* CUPS-Create-Local-Printer: Create a local (temporary) printer @since CUPS 2.2@ */
+  IPP_OP_CUPS_SET_DEFAULT_OPTIONS = 0x4029,	/* CUPS-Set-Default-Options: Set global default options @since CUPS 2.5@ */
+  IPP_OP_CUPS_GET_DEFAULT_OPTIONS	/* CUPS-Get-Default-Options: Get global default options @since CUPS 2.5@ */
 
 #  ifndef _CUPS_NO_DEPRECATED
 #    define IPP_PRINT_JOB			IPP_OP_PRINT_JOB
@@ -445,6 +447,8 @@ typedef enum ipp_op_e			/**** IPP operations ****/
 #    define CUPS_AUTHENTICATE_JOB		IPP_OP_CUPS_AUTHENTICATE_JOB
 #    define CUPS_GET_PPD			IPP_OP_CUPS_GET_PPD
 #    define CUPS_GET_DOCUMENT			IPP_OP_CUPS_GET_DOCUMENT
+#    define CUPS_SET_DEFAULT_OPTIONS		IPP_OP_CUPS_SET_DEFAULT_OPTIONS
+#    define CUPS_GET_DEFAULT_OPTIONS		IPP_OP_CUPS_GET_DEFAULT_OPTIONS
      /* Legacy names */
 #    define CUPS_ADD_PRINTER			IPP_OP_CUPS_ADD_MODIFY_PRINTER
 #    define CUPS_ADD_CLASS			IPP_OP_CUPS_ADD_MODIFY_CLASS
