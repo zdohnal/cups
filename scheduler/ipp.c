@@ -80,6 +80,7 @@ static cups_array_t *create_requested_array(ipp_t *request);
 static void	create_subscriptions(cupsd_client_t *con, ipp_attribute_t *uri);
 static void	delete_printer(cupsd_client_t *con, ipp_attribute_t *uri);
 static void	get_default(cupsd_client_t *con);
+static void	get_default_options(cupsd_client_t *con);
 static void	get_devices(cupsd_client_t *con);
 static void	get_document(cupsd_client_t *con, ipp_attribute_t *uri);
 static void	get_jobs(cupsd_client_t *con, ipp_attribute_t *uri);
@@ -114,6 +115,7 @@ static void	send_http_error(cupsd_client_t *con, http_status_t status,
 static void	send_ipp_status(cupsd_client_t *con, ipp_status_t status, const char *message, ...) _CUPS_FORMAT(3, 4);
 static int	send_response(cupsd_client_t *con);
 static void	set_default(cupsd_client_t *con, ipp_attribute_t *uri);
+static void	set_default_options(cupsd_client_t *con);
 static void	set_job_attrs(cupsd_client_t *con, ipp_attribute_t *uri);
 static void	set_printer_attrs(cupsd_client_t *con, ipp_attribute_t *uri);
 static int	set_printer_defaults(cupsd_client_t *con, cupsd_printer_t *printer);
@@ -612,6 +614,14 @@ cupsdProcessIPPRequest(
 
 	    case IPP_OP_CUPS_CREATE_LOCAL_PRINTER :
 		create_local_printer(con);
+		break;
+
+	    case IPP_OP_CUPS_SET_DEFAULT_OPTIONS :
+		set_default_options(con);
+		break;
+
+	    case IPP_OP_CUPS_GET_DEFAULT_OPTIONS :
+		get_default_options(con);
 		break;
 
 	    default :
@@ -6535,6 +6545,49 @@ get_default(cupsd_client_t *con)	/* I - Client connection */
 
 
 /*
+ * 'get_default_options()' - Get global default options.
+ */
+
+static void
+get_default_options(cupsd_client_t *con)	/* I - Client connection */
+{
+  http_status_t	status;			/* Policy status */
+  int		i;			/* Looping var */
+  cups_option_t	*option;		/* Current option */
+  char		name[256];		/* Attribute name with -default suffix */
+
+
+  cupsdLogMessage(CUPSD_LOG_DEBUG2, "get_default_options(%p[%d])",
+                  (void *)con, con->number);
+
+ /*
+  * Check policy...
+  */
+
+  if ((status = cupsdCheckPolicy(DefaultPolicyPtr, con, NULL)) != HTTP_OK)
+  {
+    send_http_error(con, status, NULL);
+    return;
+  }
+
+ /*
+  * Return global defaults as *-default attributes...
+  */
+
+  for (i = DefaultNumOptions, option = DefaultOptions;
+       i > 0;
+       i --, option ++)
+  {
+    snprintf(name, sizeof(name), "%s-default", option->name);
+    ippAddString(con->response, IPP_TAG_PRINTER, IPP_TAG_TEXT,
+                 name, NULL, option->value);
+  }
+
+  con->response->request.status.status_code = IPP_OK;
+}
+
+
+/*
  * 'get_devices()' - Get the list of available devices on the local system.
  */
 
@@ -11470,6 +11523,166 @@ set_printer_defaults(
   send_ipp_status(con, IPP_STATUS_ERROR_NOT_POSSIBLE, _("Unable to save value for \"%s\" with a temporary printer."), attr->name);
 
   return (0);
+}
+
+
+/*
+ * 'set_default_options()' - Set global default options from a request.
+ */
+
+static void
+set_default_options(cupsd_client_t *con)	/* I - Client connection */
+{
+  http_status_t		status;		/* Policy status */
+  ipp_attribute_t	*attr;		/* Current attribute */
+  size_t		namelen;	/* Length of attribute name */
+  char			name[256],	/* Option name (without -default) */
+			value[256];	/* String version of integer attrs */
+  int			changed = 0;	/* Was anything changed? */
+
+
+  cupsdLogMessage(CUPSD_LOG_DEBUG2, "set_default_options(%p[%d])",
+                  (void *)con, con->number);
+
+ /*
+  * Check policy...
+  */
+
+  if ((status = cupsdCheckPolicy(DefaultPolicyPtr, con, NULL)) != HTTP_OK)
+  {
+    send_http_error(con, status, NULL);
+    return;
+  }
+
+ /*
+  * Process attributes...
+  */
+
+  for (attr = con->request->attrs; attr; attr = attr->next)
+  {
+   /*
+    * Skip non-printer attributes...
+    */
+
+    if (attr->group_tag != IPP_TAG_PRINTER || !attr->name)
+      continue;
+
+   /*
+    * Skip any non-default attributes...
+    */
+
+    namelen = strlen(attr->name);
+    if (namelen < 9 || strcmp(attr->name + namelen - 8, "-default") ||
+        namelen > (sizeof(name) - 1) || attr->num_values != 1)
+      continue;
+
+   /*
+    * OK, this is a *-default attribute — store it...
+    */
+
+    strlcpy(name, attr->name, sizeof(name));
+    name[namelen - 8] = '\0';		/* Strip "-default" */
+
+    switch (attr->value_tag)
+    {
+      case IPP_TAG_DELETEATTR :
+          DefaultNumOptions = cupsRemoveOption(name, DefaultNumOptions,
+                                               &DefaultOptions);
+          cupsdLogMessage(CUPSD_LOG_DEBUG,
+	                  "Deleting global default %s", attr->name);
+          changed = 1;
+          break;
+
+      case IPP_TAG_NAME :
+      case IPP_TAG_TEXT :
+      case IPP_TAG_KEYWORD :
+      case IPP_TAG_URI :
+          DefaultNumOptions = cupsAddOption(name,
+	                                    attr->values[0].string.text,
+                                            DefaultNumOptions,
+                                            &DefaultOptions);
+          cupsdLogMessage(CUPSD_LOG_DEBUG,
+	                  "Setting global default %s to \"%s\"...",
+                          attr->name, attr->values[0].string.text);
+          changed = 1;
+          break;
+
+      case IPP_TAG_BOOLEAN :
+          DefaultNumOptions = cupsAddOption(name,
+	                                    attr->values[0].boolean ?
+                                                "true" : "false",
+                                            DefaultNumOptions,
+                                            &DefaultOptions);
+          cupsdLogMessage(CUPSD_LOG_DEBUG,
+	                  "Setting global default %s to %s...",
+                          attr->name,
+                          attr->values[0].boolean ? "true" : "false");
+          changed = 1;
+          break;
+
+      case IPP_TAG_INTEGER :
+      case IPP_TAG_ENUM :
+          DefaultNumOptions = cupsAddIntegerOption(name,
+                                                   attr->values[0].integer,
+                                                   DefaultNumOptions,
+                                                   &DefaultOptions);
+          cupsdLogMessage(CUPSD_LOG_DEBUG,
+	                  "Setting global default %s to %d...",
+                          attr->name, attr->values[0].integer);
+          changed = 1;
+          break;
+
+      case IPP_TAG_RANGE :
+          snprintf(value, sizeof(value), "%d-%d",
+                   attr->values[0].range.lower,
+                   attr->values[0].range.upper);
+          DefaultNumOptions = cupsAddOption(name, value,
+                                            DefaultNumOptions,
+                                            &DefaultOptions);
+          cupsdLogMessage(CUPSD_LOG_DEBUG,
+	                  "Setting global default %s to %s...",
+                          attr->name, value);
+          changed = 1;
+          break;
+
+      case IPP_TAG_RESOLUTION :
+          snprintf(value, sizeof(value), "%dx%d%s",
+                   attr->values[0].resolution.xres,
+                   attr->values[0].resolution.yres,
+                   attr->values[0].resolution.units == IPP_RES_PER_INCH ?
+                       "dpi" : "dpcm");
+          DefaultNumOptions = cupsAddOption(name, value,
+                                            DefaultNumOptions,
+                                            &DefaultOptions);
+          cupsdLogMessage(CUPSD_LOG_DEBUG,
+	                  "Setting global default %s to %s...",
+                          attr->name, value);
+          changed = 1;
+          break;
+
+      default :
+          break;
+    }
+  }
+
+ /*
+  * Save if anything changed...
+  */
+
+  if (changed)
+  {
+    cupsdMarkDirty(CUPSD_DIRTY_PRINTERS);
+
+    cupsdAddEvent(CUPSD_EVENT_SERVER_AUDIT, NULL, NULL,
+                  "%04X %s Global default options changed by \"%s\".",
+                  IPP_OK, con->http->hostname, get_username(con));
+
+    cupsdLogMessage(CUPSD_LOG_INFO,
+                    "Global default options changed by \"%s\".",
+                    get_username(con));
+  }
+
+  con->response->request.status.status_code = IPP_OK;
 }
 
 
