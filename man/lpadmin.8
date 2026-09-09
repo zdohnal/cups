@@ -52,6 +52,30 @@ lpadmin \- configure cups printers and classes
 ]
 .B \-x
 .I destination
+.br
+.B lpadmin
+[
+.B \-E
+] [
+.B \-U
+.I username
+] [
+\fB\-h \fIserver\fR[\fB:\fIport\fR]
+]
+.B \-o
+.I name-default=value
+.br
+.B lpadmin
+[
+.B \-E
+] [
+.B \-U
+.I username
+] [
+\fB\-h \fIserver\fR[\fB:\fIport\fR]
+]
+.B \-R
+.I name-default
 .SH DESCRIPTION
 \fBlpadmin\fR configures printer and class queues provided by CUPS.
 It can also be used to set the server default printer or class.
@@ -71,6 +95,9 @@ The second form of the command (\fI-p\fR) configures the named printer or class.
 .LP
 The third form of the command (\fI-x\fR) deletes the printer or class \fIdestination\fR.
 Any jobs that are pending for the destination will be removed and any job that is currently printed will be aborted.
+.LP
+The fourth form of the command (\fI-o\fR without \fI-p\fR) sets a global default option that applies to all printers.
+The fifth form (\fI-R\fR without \fI-p\fR) removes a global default option.
 .SH OPTIONS
 The following options are recognized when configuring a printer queue:
 .TP 5
@@ -121,7 +148,10 @@ command.
 .TP 5
 \fB\-o \fIname\fB-default=\fIvalue\fR
 Sets a default server-side option for the destination.
-Any print-time option can be defaulted, e.g., "-o number-up-default=2" to set the default "number-up" option value to 2.
+Any print-time option can be defaulted, e.g., "\-o number\-up\-default=2" to set the default "number\-up" option value to 2.
+When used without the \fI\-p\fR option, sets a global default that applies to all printers.
+Global defaults are applied according to the \fBDefaultOptionPolicy\fR directive in
+.BR cupsd.conf (5).
 .TP 5
 \fB\-o port\-monitor=\fIname\fR
 Sets the binary communications program to use when printing, "none", "bcp", or "tbcp".
@@ -148,6 +178,7 @@ The default operation policy is "default".
 .TP 5
 \fB\-R \fIname\fB\-default\fR
 Deletes the named option from \fIprinter\fR.
+When used without the \fI\-p\fR option, removes a global default option.
 .TP 5
 \fB\-r \fIclass\fR
 Removes the named \fIprinter\fR from \fIclass\fR.
@@ -220,6 +251,19 @@ Create an IPP Everywhere print queue:
 .nf
 
     lpadmin -p myprinter -E -v ipp://myprinter.local/ipp/print -m everywhere
+
+.fi
+.LP
+Set a global default for duplex printing on all printers:
+.nf
+
+    lpadmin \-o sides\-default=two\-sided\-long\-edge
+
+.fi
+Remove the global duplex default:
+.nf
+
+    lpadmin \-R sides\-default
 
 .fi
 .SH SEE ALSO

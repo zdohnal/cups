@@ -83,6 +83,12 @@ The default access policy is "default".
 <dd style="margin-left: 5.0em"><dt><b>DefaultShared No</b>
 <dd style="margin-left: 5.0em">Specifies whether local printers are shared by default.
 The default is "Yes".
+<dt><a name="DefaultOptionPolicy"></a><b>DefaultOptionPolicy Relaxed</b>
+<dd style="margin-left: 5.0em"><dt><b>DefaultOptionPolicy Strict</b>
+<dd style="margin-left: 5.0em">Specifies the precedence policy for global default options set via
+<a href="man-lpadmin.html?TOPIC=Man+Pages"><b>lpadmin</b>(8).</a>
+In "Relaxed" mode (the default), job attributes take precedence over per-printer defaults, which take precedence over global defaults.
+In "Strict" mode, global defaults override per-printer defaults and job attributes, enforcing administrator-set policy.
 <dt><a name="DirtyCleanInterval"></a><b>DirtyCleanInterval </b><i>seconds</i>
 <dd style="margin-left: 5.0em">Specifies the delay for updating of configuration and state files.
 A value of 0 causes the update to happen as soon as possible, typically within a few milliseconds.

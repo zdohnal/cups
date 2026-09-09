@@ -50,6 +50,30 @@ lpadmin - configure cups printers and classes
 ]
 <b>-x</b>
 <i>destination</i>
+<br>
+<b>lpadmin</b>
+[
+<b>-E</b>
+] [
+<b>-U</b>
+<i>username</i>
+] [
+<b>-h </b><i>server</i>[<b>:</b><i>port</i>]
+]
+<b>-o</b>
+<i>name-default=value</i>
+<br>
+<b>lpadmin</b>
+[
+<b>-E</b>
+] [
+<b>-U</b>
+<i>username</i>
+] [
+<b>-h </b><i>server</i>[<b>:</b><i>port</i>]
+]
+<b>-R</b>
+<i>name-default</i>
 <h2 class="title"><a name="DESCRIPTION">Description</a></h2>
 <b>lpadmin</b> configures printer and class queues provided by CUPS.
 It can also be used to set the server default printer or class.
@@ -65,6 +89,8 @@ command.
 <p>The second form of the command (<i>-p</i>) configures the named printer or class.  The additional options are described below.
 <p>The third form of the command (<i>-x</i>) deletes the printer or class <i>destination</i>.
 Any jobs that are pending for the destination will be removed and any job that is currently printed will be aborted.
+<p>The fourth form of the command (<i>-o</i> without <i>-p</i>) sets a global default option that applies to all printers.
+The fifth form (<i>-R</i> without <i>-p</i>) removes a global default option.
 <h2 class="title"><a name="OPTIONS">Options</a></h2>
 The following options are recognized when configuring a printer queue:
 <dl class="man">
@@ -104,6 +130,9 @@ command.
 <dt><b>-o </b><i>name</i><b>-default=</b><i>value</i>
 <dd style="margin-left: 5.0em">Sets a default server-side option for the destination.
 Any print-time option can be defaulted, e.g., "-o number-up-default=2" to set the default "number-up" option value to 2.
+When used without the <i>-p</i> option, sets a global default that applies to all printers.
+Global defaults are applied according to the <b>DefaultOptionPolicy</b> directive in
+<a href="man-cupsd.conf.html?TOPIC=Man+Pages"><b>cupsd.conf</b>(5).</a>
 <dt><b>-o port-monitor=</b><i>name</i>
 <dd style="margin-left: 5.0em">Sets the binary communications program to use when printing, "none", "bcp", or "tbcp".
 The default program is "none".
@@ -124,6 +153,7 @@ The name must be defined in the <i>cupsd.conf</i> in a Policy section.
 The default operation policy is "default".
 <dt><b>-R </b><i>name</i><b>-default</b>
 <dd style="margin-left: 5.0em">Deletes the named option from <i>printer</i>.
+When used without the <i>-p</i> option, removes a global default option.
 <dt><b>-r </b><i>class</i>
 <dd style="margin-left: 5.0em">Removes the named <i>printer</i> from <i>class</i>.
 If the resulting class becomes empty it is removed.
@@ -182,6 +212,16 @@ These files should not be edited directly and are an implementation detail of CU
 Create an IPP Everywhere print queue:
 <pre class="man">
     lpadmin -p myprinter -E -v ipp://myprinter.local/ipp/print -m everywhere
+
+</pre>
+<p>Set a global default for duplex printing on all printers:
+<pre class="man">
+    lpadmin -o sides-default=two-sided-long-edge
+
+</pre>
+Remove the global duplex default:
+<pre class="man">
+    lpadmin -R sides-default
 
 </pre>
 <h2 class="title"><a name="SEE_ALSO">See Also</a></h2>

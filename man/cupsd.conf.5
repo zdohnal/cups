@@ -120,6 +120,15 @@ The default access policy is "default".
 \fBDefaultShared No\fR
 Specifies whether local printers are shared by default.
 The default is "Yes".
+.\"#DefaultOptionPolicy
+.TP 5
+\fBDefaultOptionPolicy Relaxed\fR
+.TP 5
+\fBDefaultOptionPolicy Strict\fR
+Specifies the precedence policy for global default options set via
+.BR lpadmin (8).
+In "Relaxed" mode (the default), job attributes take precedence over per-printer defaults, which take precedence over global defaults.
+In "Strict" mode, global defaults override per-printer defaults and job attributes, enforcing administrator-set policy.
 .\"#DirtyCleanInterval
 .TP 5
 \fBDirtyCleanInterval \fIseconds\fR
