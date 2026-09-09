@@ -26,11 +26,13 @@ static int		default_printer(http_t *http, char *printer);
 static int		delete_printer(http_t *http, char *printer);
 static int		delete_printer_from_class(http_t *http, char *printer,
 			                          char *pclass);
+static int		delete_global_option(http_t *http, char *option);
 static int		delete_printer_option(http_t *http, char *printer,
 			                      char *option);
 static int		enable_printer(http_t *http, char *printer);
 static cups_ptype_t	get_printer_type(http_t *http, char *printer, char *uri,
 			                 size_t urisize);
+static int		set_global_options(http_t *http, int num_options, cups_option_t *options);
 static int		set_printer_options(http_t *http, char *printer,
 			                    int num_options, cups_option_t *options,
 					    char *file, int enable);
@@ -53,6 +55,7 @@ main(int  argc,				/* I - Number of command-line arguments */
 		*opt,			/* Option pointer */
 		*val;			/* Pointer to allow/deny value */
   int		enable = 0;		/* Enable/resume printer? */
+  int		global_op = 0;		/* Global option operation done? */
   int		num_options;		/* Number of options */
   cups_option_t	*options;		/* Options */
   char		*file,			/* New PPD file */
@@ -395,14 +398,6 @@ main(int  argc,				/* I - Number of command-line arguments */
 		}
 	      }
 
-	      if (printer == NULL)
-	      {
-		_cupsLangPuts(stderr,
-			      _("lpadmin: Unable to delete option:\n"
-				"         You must specify a printer name first."));
-		return (1);
-	      }
-
 	      if (opt[1] != '\0')
 	      {
 		val = opt + 1;
@@ -419,6 +414,18 @@ main(int  argc,				/* I - Number of command-line arguments */
 		}
 
 		val = argv[i];
+	      }
+
+	      if (printer == NULL)
+	      {
+	       /*
+	        * No printer specified - delete a global default option...
+	        */
+
+		if (delete_global_option(http, val))
+		  return (1);
+		global_op = 1;
+		break;
 	      }
 
 	      if (delete_printer_option(http, printer, val))
@@ -634,10 +641,36 @@ main(int  argc,				/* I - Number of command-line arguments */
   {
     if (printer == NULL)
     {
-      _cupsLangPuts(stderr,
-                    _("lpadmin: Unable to set the printer options:\n"
-                      "         You must specify a printer name first."));
-      return (1);
+      if (file)
+      {
+        _cupsLangPuts(stderr,
+                      _("lpadmin: Unable to set the printer options:\n"
+                        "         You must specify a printer name first."));
+        return (1);
+      }
+
+      if (!http)
+      {
+        http = httpConnect2(cupsServer(), ippPort(), NULL, AF_UNSPEC,
+                            cupsEncryption(), 1, 30000, NULL);
+
+        if (http == NULL)
+        {
+          _cupsLangPrintf(stderr, _("lpadmin: Unable to connect to server: %s"),
+                          strerror(errno));
+          return (1);
+        }
+      }
+
+      if (set_global_options(http, num_options, options))
+        return (1);
+
+      cupsFreeOptions(num_options, options);
+
+      if (http)
+        httpClose(http);
+
+      return (0);
     }
 
     if (!http)
@@ -661,7 +694,7 @@ main(int  argc,				/* I - Number of command-line arguments */
   if (evefile[0])
     unlink(evefile);
 
-  if (printer == NULL)
+  if (printer == NULL && !global_op)
     usage();
 
   if (http)
@@ -1582,4 +1615,86 @@ validate_name(const char *name)		/* I - Name to check */
   */
 
   return ((ptr - name) < 128);
+}
+
+
+/*
+ * 'set_global_options()' - Set global default options.
+ */
+
+static int				/* O - 0 on success, 1 on fail */
+set_global_options(
+    http_t       *http,			/* I - Server connection */
+    int          num_options,		/* I - Number of options */
+    cups_option_t *options)		/* I - Options */
+{
+  ipp_t	*request;			/* IPP request */
+
+
+ /*
+  * Build a CUPS-Set-Default-Options request...
+  */
+
+  request = ippNewRequest(IPP_OP_CUPS_SET_DEFAULT_OPTIONS);
+
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI,
+               "printer-uri", NULL, "ipp://localhost/");
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME,
+               "requesting-user-name", NULL, cupsUser());
+
+  cupsEncodeOptions2(request, num_options, options, IPP_TAG_PRINTER);
+
+ /*
+  * Do the request and get back a response...
+  */
+
+  ippDelete(cupsDoRequest(http, request, "/admin/"));
+
+  if (cupsLastError() > IPP_STATUS_OK_CONFLICTING)
+  {
+    _cupsLangPrintf(stderr, _("%s: %s"), "lpadmin", cupsLastErrorString());
+    return (1);
+  }
+  else
+    return (0);
+}
+
+
+/*
+ * 'delete_global_option()' - Delete a global default option.
+ */
+
+static int				/* O - 0 on success, 1 on fail */
+delete_global_option(
+    http_t *http,			/* I - Server connection */
+    char   *option)			/* I - Option to delete */
+{
+  ipp_t	*request;			/* IPP request */
+
+
+ /*
+  * Build a CUPS-Set-Default-Options request with deleteAttr...
+  */
+
+  request = ippNewRequest(IPP_OP_CUPS_SET_DEFAULT_OPTIONS);
+
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI,
+               "printer-uri", NULL, "ipp://localhost/");
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME,
+               "requesting-user-name", NULL, cupsUser());
+  ippAddInteger(request, IPP_TAG_PRINTER, IPP_TAG_DELETEATTR, option, 0);
+
+ /*
+  * Do the request and get back a response...
+  */
+
+  ippDelete(cupsDoRequest(http, request, "/admin/"));
+
+  if (cupsLastError() > IPP_STATUS_OK_CONFLICTING)
+  {
+    _cupsLangPrintf(stderr, _("%s: %s"), "lpadmin", cupsLastErrorString());
+    return (1);
+  }
+  else
+    return (0);
 }
