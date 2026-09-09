@@ -14,6 +14,9 @@ MaxLogSize @CUPS_MAX_LOG_SIZE@
 # Default error policy for printers
 ErrorPolicy @CUPS_ERROR_POLICY@
 
+# Default option policy for global printer defaults
+#DefaultOptionPolicy Relaxed
+
 # Only listen for connections from the local machine.
 Listen localhost:@DEFAULT_IPP_PORT@
 @CUPS_LISTEN_DOMAINSOCKET@
@@ -82,7 +85,7 @@ IdleExitTimeout @EXIT_TIMEOUT@
   </Limit>
 
   # All administration operations require an administrator to authenticate...
-  <Limit CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class CUPS-Set-Default CUPS-Get-Devices>
+  <Limit CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class CUPS-Set-Default CUPS-Set-Default-Options CUPS-Get-Devices>
     AuthType Default
     Require user @SYSTEM
     Order deny,allow
@@ -133,7 +136,7 @@ IdleExitTimeout @EXIT_TIMEOUT@
   </Limit>
 
   # All administration operations require an administrator to authenticate...
-  <Limit CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class CUPS-Set-Default>
+  <Limit CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class CUPS-Set-Default CUPS-Set-Default-Options>
     AuthType Default
     Require user @SYSTEM
     Order deny,allow
@@ -179,7 +182,7 @@ IdleExitTimeout @EXIT_TIMEOUT@
   </Limit>
 
   # All administration operations require an administrator to authenticate...
-  <Limit Set-Printer-Attributes CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class CUPS-Set-Default>
+  <Limit Set-Printer-Attributes CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class CUPS-Set-Default CUPS-Set-Default-Options>
     AuthType Default
     Require user @SYSTEM
     Order deny,allow
