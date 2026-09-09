@@ -886,7 +886,7 @@ cupsdLoadAllPrinters(void)
       else
         cupsdLogMessage(CUPSD_LOG_ERROR, "Syntax error on line %d of printers.conf.", linenum);
     }
-    else if (!_cups_strcasecmp(line, "<DefaultOptions"))
+    else if (!_cups_strcasecmp(line, "<DefaultOptions>"))
     {
       if (p == NULL && !in_default_options)
       {
@@ -1002,7 +1002,7 @@ cupsdLoadAllPrinters(void)
         cupsdLogMessage(CUPSD_LOG_ERROR,
 	                "Syntax error on line %d of printers.conf.", linenum);
     }
-    else if (!p && !in_default_options)
+    else if (!p)
     {
       cupsdLogMessage(CUPSD_LOG_ERROR,
                       "Syntax error on line %d of printers.conf.", linenum);
