@@ -11538,7 +11538,8 @@ set_default_options(cupsd_client_t *con)	/* I - Client connection */
   size_t		namelen;	/* Length of attribute name */
   char			name[256],	/* Option name (without -default) */
 			value[256];	/* String version of integer attrs */
-  int			changed = 0;	/* Was anything changed? */
+  int			changed = 0,	/* Was anything changed? */
+			num_valid = 0;	/* Number of valid *-default attrs */
 
 
   cupsdLogMessage(CUPSD_LOG_DEBUG2, "set_default_options(%p[%d])",
@@ -11551,6 +11552,28 @@ set_default_options(cupsd_client_t *con)	/* I - Client connection */
   if ((status = cupsdCheckPolicy(DefaultPolicyPtr, con, NULL)) != HTTP_OK)
   {
     send_http_error(con, status, NULL);
+    return;
+  }
+
+ /*
+  * Validate that the request contains at least one processable attribute...
+  */
+
+  for (attr = con->request->attrs; attr; attr = attr->next)
+  {
+    if (attr->group_tag != IPP_TAG_PRINTER || !attr->name)
+      continue;
+
+    namelen = strlen(attr->name);
+    if (namelen >= 9 && !strcmp(attr->name + namelen - 8, "-default") &&
+        namelen <= (sizeof(name) - 1) && attr->num_values == 1)
+      num_valid ++;
+  }
+
+  if (num_valid == 0)
+  {
+    send_ipp_status(con, IPP_STATUS_ERROR_BAD_REQUEST,
+                    _("No valid default option attributes in request."));
     return;
   }
 
@@ -11577,7 +11600,20 @@ set_default_options(cupsd_client_t *con)	/* I - Client connection */
       continue;
 
    /*
-    * OK, this is a *-default attribute — store it...
+    * Validate the attribute value...
+    */
+
+    if (attr->value_tag != IPP_TAG_DELETEATTR &&
+        !ippValidateAttribute(attr))
+    {
+      cupsdLogMessage(CUPSD_LOG_WARN,
+                      "Skipping invalid global default %s: %s",
+                      attr->name, cupsLastErrorString());
+      continue;
+    }
+
+   /*
+    * OK, this is a valid *-default attribute — store it...
     */
 
     strlcpy(name, attr->name, sizeof(name));
@@ -11661,6 +11697,9 @@ set_default_options(cupsd_client_t *con)	/* I - Client connection */
           break;
 
       default :
+          cupsdLogMessage(CUPSD_LOG_WARN,
+                          "Unsupported value tag %s for global default %s.",
+                          ippTagString(attr->value_tag), attr->name);
           break;
     }
   }
