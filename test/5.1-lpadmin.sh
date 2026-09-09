@@ -126,3 +126,85 @@ else
 	echo "    PASSED"
 fi
 echo ""
+
+echo "Set Global Default Option Test"
+echo ""
+echo "    lpadmin -o sides-default=two-sided-long-edge"
+$runcups $VALGRIND ../systemv/lpadmin -o sides-default=two-sided-long-edge 2>&1
+if test $? != 0; then
+	echo "    FAILED"
+	exit 1
+else
+	echo "    PASSED"
+fi
+echo ""
+
+echo "Verify Global Default in printers.conf Test"
+echo ""
+echo "    grep sides printers.conf"
+if grep -q "Option sides two-sided-long-edge" $CUPS_SERVERROOT/printers.conf; then
+	echo "    PASSED"
+else
+	echo "    FAILED (Option not found in printers.conf)"
+	exit 1
+fi
+echo ""
+
+echo "Set Another Global Default Option Test"
+echo ""
+echo "    lpadmin -o media-default=A4"
+$runcups $VALGRIND ../systemv/lpadmin -o media-default=A4 2>&1
+if test $? != 0; then
+	echo "    FAILED"
+	exit 1
+else
+	echo "    PASSED"
+fi
+echo ""
+
+echo "Verify Multiple Global Defaults in printers.conf Test"
+echo ""
+echo "    grep DefaultOptions printers.conf"
+if grep -q "<DefaultOptions>" $CUPS_SERVERROOT/printers.conf && \
+   grep -q "Option sides two-sided-long-edge" $CUPS_SERVERROOT/printers.conf && \
+   grep -q "Option media A4" $CUPS_SERVERROOT/printers.conf; then
+	echo "    PASSED"
+else
+	echo "    FAILED (DefaultOptions block or options not found)"
+	exit 1
+fi
+echo ""
+
+echo "Remove Global Default Option Test"
+echo ""
+echo "    lpadmin -R sides-default"
+$runcups $VALGRIND ../systemv/lpadmin -R sides-default 2>&1
+if test $? != 0; then
+	echo "    FAILED"
+	exit 1
+else
+	echo "    PASSED"
+fi
+echo ""
+
+echo "Verify Global Default Removed from printers.conf Test"
+echo ""
+echo "    grep -v sides printers.conf"
+if grep -q "Option sides" $CUPS_SERVERROOT/printers.conf; then
+	echo "    FAILED (Option sides still present after removal)"
+	exit 1
+else
+	echo "    PASSED"
+fi
+echo ""
+
+echo "Verify Remaining Global Default Still Present Test"
+echo ""
+echo "    grep media printers.conf"
+if grep -q "Option media A4" $CUPS_SERVERROOT/printers.conf; then
+	echo "    PASSED"
+else
+	echo "    FAILED (Option media A4 missing after removing sides)"
+	exit 1
+fi
+echo ""
