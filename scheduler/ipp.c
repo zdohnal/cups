@@ -48,6 +48,7 @@ static void	add_queued_job_count(cupsd_client_t *con, cupsd_printer_t *p);
 static void	apply_printer_defaults(cupsd_printer_t *printer,
 				       cupsd_job_t *job);
 static void	authenticate_job(cupsd_client_t *con, ipp_attribute_t *uri);
+static int	skip_ppd_equivalent(cupsd_job_t *job, const char *name);
 static void	cancel_all_jobs(cupsd_client_t *con, ipp_attribute_t *uri);
 static void	cancel_job(cupsd_client_t *con, ipp_attribute_t *uri);
 static void	cancel_subscription(cupsd_client_t *con, int id);
@@ -2907,6 +2908,40 @@ add_queued_job_count(
 
 
 /*
+ * 'skip_ppd_equivalent()' - Check if an option has a PPD equivalent already
+ *                           set in the job.
+ */
+
+static int				/* O - 1 to skip, 0 to apply */
+skip_ppd_equivalent(
+    cupsd_job_t    *job,		/* I - Job */
+    const char     *name)		/* I - Option name */
+{
+  if (!strcmp(name, "media") &&
+      ippFindAttribute(job->attrs, "PageSize", IPP_TAG_NAME))
+    return (1);
+
+  if (!strcmp(name, "output-bin") &&
+      ippFindAttribute(job->attrs, "OutputBin", IPP_TAG_NAME))
+    return (1);
+
+  if (!strcmp(name, "print-quality") &&
+      ippFindAttribute(job->attrs, "cupsPrintQuality", IPP_TAG_NAME))
+    return (1);
+
+  if (!strcmp(name, "print-color-mode") &&
+      ippFindAttribute(job->attrs, "ColorModel", IPP_TAG_NAME))
+    return (1);
+
+  if (!strcmp(name, "sides") &&
+      ippFindAttribute(job->attrs, "Duplex", IPP_TAG_NAME))
+    return (1);
+
+  return (0);
+}
+
+
+/*
  * 'apply_printer_defaults()' - Apply printer default options to a job.
  */
 
@@ -2923,36 +2958,93 @@ apply_printer_defaults(
 
   cupsdLogJob(job, CUPSD_LOG_DEBUG, "Applying default options...");
 
- /*
-  * Collect all of the default options and add the missing ones to the
-  * job object...
-  */
+  num_options = 0;
+  options     = NULL;
 
-  for (i = printer->num_options, num_options = 0, options = NULL,
-           option = printer->options;
-       i > 0;
-       i --, option ++)
-    if (!ippFindAttribute(job->attrs, option->name, IPP_TAG_ZERO))
+  if (DefaultOptionStrict)
+  {
+   /*
+    * Strict mode: Global defaults override everything, then printer defaults
+    * fill in what globals didn't set.
+    */
+
+    for (i = DefaultNumOptions, option = DefaultOptions;
+         i > 0;
+         i --, option ++)
     {
-      if (!strcmp(option->name, "media") && ippFindAttribute(job->attrs, "PageSize", IPP_TAG_NAME))
-        continue;                     /* Don't override PageSize */
+      if (skip_ppd_equivalent(job, option->name))
+        continue;
 
-      if (!strcmp(option->name, "output-bin") && ippFindAttribute(job->attrs, "OutputBin", IPP_TAG_NAME))
-        continue;                     /* Don't override OutputBin */
+      cupsdLogJob(job, CUPSD_LOG_DEBUG, "Enforcing global default %s=%s",
+                  option->name, option->value);
 
-      if (!strcmp(option->name, "print-quality") && ippFindAttribute(job->attrs, "cupsPrintQuality", IPP_TAG_NAME))
-        continue;                     /* Don't override cupsPrintQuality */
-
-      if (!strcmp(option->name, "print-color-mode") && ippFindAttribute(job->attrs, "ColorModel", IPP_TAG_NAME))
-        continue;                     /* Don't override ColorModel */
-
-      if (!strcmp(option->name, "sides") && ippFindAttribute(job->attrs, "Duplex", IPP_TAG_NAME))
-        continue;                     /* Don't override Duplex */
-
-      cupsdLogJob(job, CUPSD_LOG_DEBUG, "Adding default %s=%s", option->name, option->value);
-
-      num_options = cupsAddOption(option->name, option->value, num_options, &options);
+      ippDeleteAttribute(job->attrs,
+                         ippFindAttribute(job->attrs, option->name,
+                                          IPP_TAG_ZERO));
+      num_options = cupsAddOption(option->name, option->value, num_options,
+                                 &options);
     }
+
+    for (i = printer->num_options, option = printer->options;
+         i > 0;
+         i --, option ++)
+    {
+      if (skip_ppd_equivalent(job, option->name))
+        continue;
+
+      if (!ippFindAttribute(job->attrs, option->name, IPP_TAG_ZERO) &&
+          !cupsGetOption(option->name, num_options, options))
+      {
+        cupsdLogJob(job, CUPSD_LOG_DEBUG, "Adding printer default %s=%s",
+                    option->name, option->value);
+
+        num_options = cupsAddOption(option->name, option->value, num_options,
+                                   &options);
+      }
+    }
+  }
+  else
+  {
+   /*
+    * Relaxed mode (default): Job attrs > Printer defaults > Global defaults.
+    * Only add options not already present in the job.
+    */
+
+    for (i = printer->num_options, option = printer->options;
+         i > 0;
+         i --, option ++)
+    {
+      if (!ippFindAttribute(job->attrs, option->name, IPP_TAG_ZERO))
+      {
+        if (skip_ppd_equivalent(job, option->name))
+          continue;
+
+        cupsdLogJob(job, CUPSD_LOG_DEBUG, "Adding printer default %s=%s",
+                    option->name, option->value);
+
+        num_options = cupsAddOption(option->name, option->value, num_options,
+                                   &options);
+      }
+    }
+
+    for (i = DefaultNumOptions, option = DefaultOptions;
+         i > 0;
+         i --, option ++)
+    {
+      if (!ippFindAttribute(job->attrs, option->name, IPP_TAG_ZERO) &&
+          !cupsGetOption(option->name, num_options, options))
+      {
+        if (skip_ppd_equivalent(job, option->name))
+          continue;
+
+        cupsdLogJob(job, CUPSD_LOG_DEBUG, "Adding global default %s=%s",
+                    option->name, option->value);
+
+        num_options = cupsAddOption(option->name, option->value, num_options,
+                                   &options);
+      }
+    }
+  }
 
  /*
   * Encode these options as attributes in the job object...
